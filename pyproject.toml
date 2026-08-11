@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "whowhen-eval"
+version = "1.0.0"
+description = "Evaluation harness for the Who&When Pro failure-attribution benchmark"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["llm", "agents", "evaluation", "failure-attribution", "benchmark"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "litellm>=1.55",
+    "pyyaml>=6.0",
+    "pillow>=10.0",
+]
+
+[project.scripts]
+whowhen-eval = "whowhen_eval.run:main"
+whowhen-leaderboard = "whowhen_eval.leaderboard:main"
+
+[tool.setuptools.packages.find]
+include = ["whowhen_eval*"]
