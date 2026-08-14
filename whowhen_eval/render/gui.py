@@ -25,6 +25,9 @@ Screenshot handling
 -------------------
 Every action step carries at most one screenshot in
 ``observation_images`` — the screen state the agent saw when it acted.
+Attached screenshots are sampled: the initial one, every
+``_SCREENSHOT_INTERVAL``-th, and the final one. Step text is never
+sampled — every step renders in full.
 The block layout follows the pixelcraft text→image→body pattern::
 
     Step 7 | Agent: coder
@@ -68,6 +71,27 @@ from .base import (
 _MAX_WIDTH = 1024
 _JPEG_QUALITY = 80
 
+# Attach the initial screenshot, every Nth, and the final one.
+_SCREENSHOT_INTERVAL = 10
+
+
+def _select_screenshot_steps(trajectory: list[dict]) -> set[int]:
+    """Trajectory indexes of the action entries whose screenshot is
+    attached: index 0, every ``_SCREENSHOT_INTERVAL``-th, and the last of
+    the entries that carry one."""
+    with_shot = [
+        i for i, e in enumerate(trajectory)
+        if e.get("kind") == "action"
+        and any(isinstance(img, dict) and img.get("data")
+                for img in e.get("observation_images") or [])
+    ]
+    if not with_shot:
+        return set()
+    selected = {0, len(with_shot) - 1}
+    if _SCREENSHOT_INTERVAL > 0:
+        selected.update(range(0, len(with_shot), _SCREENSHOT_INTERVAL))
+    return {with_shot[i] for i in selected}
+
 
 def _screenshot_part(release_image: dict) -> dict[str, Any]:
     """Convert a release screenshot to an ``image_url`` part, capping
@@ -102,7 +126,10 @@ def render(release: dict) -> RenderResult:
     if task_imgs:
         blocks.append(TranscriptBlock(coord=TASK_ANCHOR, text="", images=task_imgs))
 
-    for entry in release.get("trajectory") or []:
+    trajectory = release.get("trajectory") or []
+    shot_steps = _select_screenshot_steps(trajectory)
+
+    for entry_idx, entry in enumerate(trajectory):
         kind = entry.get("kind")
         if kind != "action":
             # ``user`` is framing (rendered as the User Question section);
@@ -119,9 +146,10 @@ def render(release: dict) -> RenderResult:
         error = entry.get("error")
 
         step_imgs: list[dict[str, Any]] = []
-        for img in entry.get("observation_images") or []:
-            if isinstance(img, dict) and img.get("data"):
-                step_imgs.append(_screenshot_part(img))
+        if entry_idx in shot_steps:
+            for img in entry.get("observation_images") or []:
+                if isinstance(img, dict) and img.get("data"):
+                    step_imgs.append(_screenshot_part(img))
 
         header = f"Step {coord} | Agent: {agent}"
         if step_imgs:
